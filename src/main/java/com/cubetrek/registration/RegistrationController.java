@@ -49,6 +49,9 @@ public class RegistrationController {
     @Autowired
     NewsletterSignupRepository newsletterSignupRepository;
 
+    @Value("${cloudflare.turnstyle.enabled}")
+    boolean  isTurnstileEnabled;
+
     @Value("${cloudflare.turnstyle.secret}")
     String cloudflareTurnstyleSecret;
 
@@ -58,6 +61,7 @@ public class RegistrationController {
     public String showRegistrationForm(WebRequest request, Model model) {
         UserDto userDto = new UserDto();
         model.addAttribute("user", userDto);
+        model.addAttribute("isTurnstileEnabled", isTurnstileEnabled);
         return "registration";
     }
 
