@@ -72,25 +72,26 @@ public class RegistrationController {
         if (bindingResult.hasErrors())
             return "registration";
 
-        try {
-            if (cf_turnstile_response.equals("none")) {
-                logger.error("Error Registration: no Cloudflare Turnstile transferred for Username: "+userDto.getName()+", email "+userDto.getEmail()+ ", IP "+request.getHeader("X-FORWARDED-FOR")); //"X-FORWARDED-FOR" contains the originating IP from NGINX
-                throw new ExceptionHandling.UnnamedException("Something went wrong :(", "Could not finalize Registration, you might be a bot. Did you click the Human Verification button?");
+        if(isTurnstileEnabled) {
+            try {
+                if (cf_turnstile_response.equals("none")) {
+                    logger.error("Error Registration: no Cloudflare Turnstile transferred for Username: " + userDto.getName() + ", email " + userDto.getEmail() + ", IP " + request.getHeader("X-FORWARDED-FOR")); //"X-FORWARDED-FOR" contains the originating IP from NGINX
+                    throw new ExceptionHandling.UnnamedException("Something went wrong :(", "Could not finalize Registration, you might be a bot. Did you click the Human Verification button?");
+                }
+                HttpResponse<String> response = verifyCloudflareTurnstile(cf_turnstile_response, request.getHeader("X-FORWARDED-FOR"));
+                if (response.statusCode() != 200) {
+                    logger.error("Error Registration: Cloudflare Turnstile returns not 200: " + response.statusCode() + "; " + response.body());
+                    throw new ExceptionHandling.UnnamedException("Something went wrong :(", "Could not finalize Registration, please try again later or send an email to contact@cubetrek.com");
+                }
+                boolean turnstile_success = (new ObjectMapper()).readTree(response.body()).get("success").asBoolean(false);
+                if (!turnstile_success) {
+                    logger.error("Error Registration: Cloudflare Turnstile returns not true: " + response.body());
+                    throw new ExceptionHandling.UnnamedException("Something went wrong :(", "Could not finalize Registration, please try again later or send an email to contact@cubetrek.com");
+                }
+            } catch (URISyntaxException | IOException | InterruptedException e) {
+                throw new RuntimeException(e);
             }
-            HttpResponse<String> response = verifyCloudflareTurnstile(cf_turnstile_response, request.getHeader("X-FORWARDED-FOR"));
-            if (response.statusCode()!=200) {
-                logger.error("Error Registration: Cloudflare Turnstile returns not 200: "+response.statusCode()+"; "+response.body());
-                throw new ExceptionHandling.UnnamedException("Something went wrong :(", "Could not finalize Registration, please try again later or send an email to contact@cubetrek.com");
-            }
-            boolean turnstile_success = (new ObjectMapper()).readTree(response.body()).get("success").asBoolean(false);
-            if (!turnstile_success) {
-                logger.error("Error Registration: Cloudflare Turnstile returns not true: "+response.body());
-                throw new ExceptionHandling.UnnamedException("Something went wrong :(", "Could not finalize Registration, please try again later or send an email to contact@cubetrek.com");
-            }
-        } catch (URISyntaxException | IOException | InterruptedException e) {
-            throw new RuntimeException(e);
         }
-
 
         try {
             Users registered = userRegistrationService.register(userDto);
