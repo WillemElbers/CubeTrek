@@ -360,6 +360,9 @@ public class MainController {
                     String.format("https://api.maptiler.com/maps/ch-swisstopo-lbm/%d/%d/%d.png?key=%s", zoom, x, y, maptilerApiKey);
         };
 
+        logger.info("maptilerApiKey: "+maptilerApiKey);
+        logger.info("mapaccession: "+mapaccession);
+
         response.setHeader("Location", mapaccession);
         response.addHeader("Cache-Control", "max-age=864000, public");
         response.setStatus(302);
