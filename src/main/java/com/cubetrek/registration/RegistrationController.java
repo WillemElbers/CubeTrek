@@ -49,6 +49,9 @@ public class RegistrationController {
     @Autowired
     NewsletterSignupRepository newsletterSignupRepository;
 
+    @Value("${account.registration.confirmation.enabled}")
+    boolean  isAccountRegistrationConfirmationEnabled;
+
     @Value("${cloudflare.turnstyle.enabled}")
     boolean  isTurnstileEnabled;
 
@@ -95,7 +98,19 @@ public class RegistrationController {
 
         try {
             Users registered = userRegistrationService.register(userDto);
-            eventPublisher.publishEvent(new OnRegistrationCompleteEvent(registered));
+            if(isAccountRegistrationConfirmationEnabled) {
+                eventPublisher.publishEvent(new OnRegistrationCompleteEvent(registered));
+            } else {
+                registered.setEnabled(true);
+                userRegistrationService.saveRegisteredUser(registered);
+                logger.info("User Email successfully validated: "+registered.getEmail());
+
+                NewsletterSignup signup = new NewsletterSignup();
+                signup.setEmail(registered.getEmail());
+                signup.setDate(new java.sql.Date(System.currentTimeMillis()));
+                newsletterSignupRepository.save(signup);
+                return "redirect:/successRegisterValidation";
+            }
         } catch (ExceptionHandling.UserRegistrationException ex) { //the email address exists already
             bindingResult.addError(new FieldError("user", "email", ex.msg));
             return "registration";
